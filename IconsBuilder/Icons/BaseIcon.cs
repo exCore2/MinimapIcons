@@ -38,12 +38,7 @@ public abstract class BaseIcon
 
     public BaseIcon(Entity entity)
     {
-        Entity = entity;
-
-        if (Entity == null)
-        {
-            return;
-        }
+        Entity = entity ?? throw new ArgumentNullException(nameof(entity));
 
         Rarity = Entity.Rarity;
 
@@ -92,13 +87,13 @@ public abstract class BaseIcon
     public bool HasIngameIcon => _HasIngameIcon;
     public Entity Entity { get; }
 
-    public Func<Vector2> GridPosition { get; set; }
+    public Func<Vector2> GridPosition { get; set; } = () => Vector2.Zero;
     public RectangleF DrawRect { get; set; }
-    public Func<bool> Show { get; set; }
+    public Func<bool> Show { get; set; } = () => false;
     public Func<bool> Hidden { get; protected set; } = () => false;
-    public HudTexture MainTexture { get; protected set; }
+    public HudTexture MainTexture { get; protected set; } = new("Icons.png");
     public IconPriority Priority { get; protected set; }
     public MonsterRarity Rarity { get; protected set; }
-    public string Text { get; protected set; }
+    public string Text { get; protected set; } = string.Empty;
     public string RenderName => Entity.RenderName;
 }

@@ -87,25 +87,30 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
 
     public override void Render()
     {
+        var ingameUi = _ingameUi;
+        var gameController = GameController;
         if (_largeMap == null || 
-            !GameController.InGame ||
+            ingameUi == null ||
+            gameController == null ||
+            !gameController.InGame ||
             Settings.DrawOnlyOnLargeMap && _largeMap != true) 
             return;
 
         if (!Settings.IgnoreFullscreenPanels &&
-            _ingameUi.FullscreenPanels.Any(x => x.IsVisible) ||
+            ingameUi.FullscreenPanels.Any(x => x.IsVisible) ||
             !Settings.IgnoreLargePanels &&
-            _ingameUi.LargePanels.Any(x => x.IsVisible))
+            ingameUi.LargePanels.Any(x => x.IsVisible))
             return;
 
-        var playerRender = GameController?.Player?.GetComponent<Render>();
+        var playerRender = gameController.Player?.GetComponent<Render>();
         if (playerRender == null) return;
         var playerPos = playerRender.Pos.WorldToGrid();
         var playerHeight = -playerRender.UnclampedHeight;
+        var ingameData = gameController.IngameState.Data;
 
         if (LargeMapWindow == null) return;
 
-        var baseIcons = _iconListCache.Value;
+        var baseIcons = _iconListCache?.Value;
         if (baseIcons == null) return;
 
         foreach (var icon in baseIcons)
@@ -127,14 +132,14 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
             var iconGridPos = icon.GridPosition();
             var position = _mapCenter +
                            DeltaInWorldToMinimapDelta(iconGridPos - playerPos,
-                               (playerHeight + GameController.IngameState.Data.GetTerrainHeightAt(iconGridPos)) * PoeMapExtension.WorldToGridConversion);
+                               (playerHeight + ingameData.GetTerrainHeightAt(iconGridPos)) * PoeMapExtension.WorldToGridConversion);
 
             var iconValueMainTexture = icon.MainTexture;
             var size = iconValueMainTexture.Size;
             var halfSize = size / 2f;
             icon.DrawRect = new RectangleF(position.X - halfSize, position.Y - halfSize, size, size);
             var drawRect = icon.DrawRect;
-            if (_largeMap == false && !_ingameUi.Map.SmallMiniMap.GetClientRectCache.Contains(drawRect)) 
+            if (_largeMap == false && !ingameUi.Map.SmallMiniMap.GetClientRectCache.Contains(drawRect))
                 continue;
 
             Graphics.DrawImage(iconValueMainTexture.FileName, drawRect, iconValueMainTexture.UV, iconValueMainTexture.Color);

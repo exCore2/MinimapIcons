@@ -12,7 +12,7 @@ public class ShrineIcon : BaseIcon
     {
         MainTexture = new HudTexture("Icons.png");
         MainTexture.UV = SpriteHelper.GetUV(MapIconsIndex.Shrine);
-        Text = entity.GetComponent<Render>()?.Name;
+        Text = entity.GetComponent<Render>()?.Name ?? string.Empty;
         MainTexture.Size = settings.SizeShrineIcon;
         Show = () => entity.IsValid && entity.GetComponent<Shrine>().IsAvailable;
     }

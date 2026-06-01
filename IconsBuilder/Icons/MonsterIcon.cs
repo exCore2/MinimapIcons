@@ -35,10 +35,10 @@ public class MonsterIcon : BaseIcon
             MonsterRarity.Magic => settings.SizeEntityMagicIcon,
             MonsterRarity.Rare => settings.SizeEntityRareIcon,
             MonsterRarity.Unique => settings.SizeEntityUniqueIcon,
-            _ => throw new ArgumentException($"{nameof(MonsterIcon)} wrong rarity for {entity.Path}. Dump: {entity.GetComponent<ObjectMagicProperties>().DumpObject()}")
+            _ => throw new ArgumentException($"{nameof(MonsterIcon)} wrong rarity for {entity.Path}. Dump: {(entity.TryGetComponent<ObjectMagicProperties>(out var omp) ? omp.DumpObject() : "ObjectMagicProperties=null")}")
         };
 
-        if (_HasIngameIcon && entity.HasComponent<MinimapIcon>() && !entity.GetComponent<MinimapIcon>().Name.Equals("NPC"))
+        if (_HasIngameIcon && entity.HasComponent<MinimapIcon>() && !string.Equals(entity.GetComponent<MinimapIcon>().Name, "NPC", StringComparison.Ordinal))
             return;
 
         if (!entity.IsHostile)
@@ -52,7 +52,7 @@ public class MonsterIcon : BaseIcon
 
             //Spirits icon
         }
-        else if (Rarity == MonsterRarity.Unique && entity.Path.Contains("Metadata/Monsters/Spirit/"))
+        else if (Rarity == MonsterRarity.Unique && entity.Path?.Contains("Metadata/Monsters/Spirit/") == true)
             MainTexture.UV = SpriteHelper.GetUV(MapIconsIndex.LootFilterLargeGreenHexagon);
         else
         {
@@ -98,7 +98,7 @@ public class MonsterIcon : BaseIcon
                         break;
                     default:
                         throw new ArgumentOutOfRangeException(
-                            $"Rarity wrong was is {Rarity}. {entity.GetComponent<ObjectMagicProperties>().DumpObject()}");
+                            $"Rarity wrong was is {Rarity}. {(entity.TryGetComponent<ObjectMagicProperties>(out var omp2) ? omp2.DumpObject() : "ObjectMagicProperties=null")}");
                 }
             }
         }

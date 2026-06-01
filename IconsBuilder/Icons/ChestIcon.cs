@@ -46,7 +46,7 @@ public class ChestIcon : BaseIcon
         if (_HasIngameIcon)
         {
             MainTexture.Size = settings.SizeChestIcon;
-            Text = Entity.GetComponent<Render>()?.Name;
+            Text = Entity.GetComponent<Render>()?.Name ?? string.Empty;
             return;
         }
 
@@ -88,12 +88,12 @@ public class ChestIcon : BaseIcon
                 if (strongboxesUV.TryGetValue(Entity.Path, out var result))
                 {
                     MainTexture.UV = SpriteHelper.GetUV(result, new Vector2i(7, 8));
-                    Text = Entity.GetComponent<Render>()?.Name;
+                    Text = Entity.GetComponent<Render>()?.Name ?? string.Empty;
                 }
                 else
                 {
                     MainTexture.UV = SpriteHelper.GetUV(MyMapIconsIndex.Strongbox);
-                    Text = Entity.GetComponent<Render>()?.Name;
+                    Text = Entity.GetComponent<Render>()?.Name ?? string.Empty;
                 }
 
                 break;

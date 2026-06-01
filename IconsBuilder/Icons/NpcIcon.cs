@@ -14,7 +14,7 @@ public class NpcIcon : BaseIcon
 
         MainTexture.Size = settings.SizeNpcIcon;
         var component = entity.GetComponent<Render>();
-        Text = component?.Name.Split(',')[0];
+        Text = component?.Name.Split(',')[0] ?? string.Empty;
         Show = () => entity.IsValid;
         if (_HasIngameIcon) return;
 

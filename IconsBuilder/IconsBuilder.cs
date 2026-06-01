@@ -29,7 +29,7 @@ public class IconsBuilder
     private string DefaultIgnoreFile => Path.Combine(_plugin.DirectoryFullName, "config", "ignored_entities.txt");
     private string CustomIgnoreFile => Path.Combine(_plugin.ConfigDirectory, "ignored_entities.txt");
 
-    private List<string> IgnoredEntities { get; set; }
+    private List<string> IgnoredEntities { get; set; } = new List<string>();
     private Dictionary<string, Vector2i> AlertEntitiesWithIconSize { get; set; } = new Dictionary<string, Vector2i>();
 
     private static EntityType[] SkippedEntityTypes =>
@@ -72,6 +72,7 @@ public class IconsBuilder
         if (!File.Exists(path))
         {
            _plugin.LogError($"IconsBuilder -> Ignored entities file does not exist. Path: {path}");
+            IgnoredEntities = new List<string>();
             return;
         }
         IgnoredEntities = File.ReadAllLines(path).Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith('#')).ToList();
@@ -101,7 +102,10 @@ public class IconsBuilder
 
     private void AddIcons()
     {
-        foreach (var entity in _plugin.GameController.Entities)
+        var entities = _plugin.GameController?.Entities;
+        if (entities == null) return;
+
+        foreach (var entity in entities)
         {
             try
             {
@@ -134,7 +138,10 @@ public class IconsBuilder
 
     private BaseIcon GenerateIcon(Entity entity)
     {
-        var metadata = entity.Metadata;
+        if (entity == null || !entity.IsValid)
+            return null;
+
+        var metadata = entity.Metadata ?? string.Empty;
         if (Settings.CustomIcons.Content
                 .FirstOrDefault(x => _regexes.GetValue(x.MetadataRegex.Value, p => new Regex(p))!.IsMatch(metadata)) is { } customIconConfig)
         {
@@ -187,36 +194,50 @@ public class IconsBuilder
         {
             if (!entity.TryGetComponent<Player>(out var player) ||
                 player.PlayerName is not {} playerName ||
-                _plugin.GameController.IngameState.Data.LocalPlayer.Address == entity.Address ||
-                _plugin.GameController.IngameState.Data.LocalPlayer.GetComponent<Render>().Name == entity.RenderName) return null;
+                _plugin.GameController.IngameState.Data.LocalPlayer.Address == entity.Address)
+                return null;
+
+            if (_plugin.GameController.IngameState.Data.LocalPlayer.TryGetComponent<Render>(out var localPlayerRender) &&
+                localPlayerRender.Name == entity.RenderName)
+                return null;
 
             if (!entity.IsValid) return null;
             return new PlayerIcon(entity, Settings, playerName);
         }
 
         //Chests
-        if (entity.Type == EntityType.Chest && !entity.IsOpened)
-            return new ChestIcon(entity, Settings);
+        if (entity.Type == EntityType.Chest)
+        {
+            try
+            {
+                if (!entity.IsOpened)
+                    return new ChestIcon(entity, Settings);
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
         //Area transition
         if (entity.Type == EntityType.AreaTransition)
             return new MiscIcon(entity, Settings);
 
         //Shrine
-        if (entity.HasComponent<Shrine>())
+        if (entity.TryGetComponent<Shrine>(out _))
             return new ShrineIcon(entity, Settings);
 
-        if (entity.HasComponent<Transitionable>() && entity.HasComponent<MinimapIcon>())
+        if (entity.TryGetComponent<Transitionable>(out _) && entity.TryGetComponent<MinimapIcon>(out var minimapIcon))
         {
             //Mission marker
-            if (entity.Path.Equals("Metadata/MiscellaneousObjects/MissionMarker", StringComparison.Ordinal) ||
-                entity.GetComponent<MinimapIcon>().Name.Equals("MissionTarget", StringComparison.Ordinal))
+            if (string.Equals(entity.Path, "Metadata/MiscellaneousObjects/MissionMarker", StringComparison.Ordinal) ||
+                string.Equals(minimapIcon.Name, "MissionTarget", StringComparison.Ordinal))
                 return new MissionMarkerIcon(entity, Settings);
 
             return new MiscIcon(entity, Settings);
         }
 
-        if (entity.HasComponent<MinimapIcon>() && entity.HasComponent<Targetable>() ||
+        if (entity.TryGetComponent<MinimapIcon>(out _) && entity.TryGetComponent<Targetable>(out _) ||
             entity.Path is "Metadata/Terrain/Leagues/Sanctum/Objects/SanctumMote")
             return new MiscIcon(entity, Settings);
 

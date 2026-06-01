@@ -37,7 +37,18 @@ public class IngameIconReplacerIcon : BaseIcon
 
         T Update<T>(ref T store, Func<T> update)
         {
-            return entity.IsValid ? store = update() : store;
+            if (!entity.IsValid)
+                return store;
+
+            try
+            {
+                return store = update();
+            }
+            catch
+            {
+                // Component access can fail while the entity is being recycled.
+                return store;
+            }
         }
 
         Show = () => !Update(ref isHidden, () => entity.GetComponent<MinimapIcon>()?.IsHide ?? isHidden) &&
@@ -45,7 +56,16 @@ public class IngameIconReplacerIcon : BaseIcon
                      Update(ref shrineIsAvailable, () => entity.GetComponent<Shrine>()?.IsAvailable ?? shrineIsAvailable) &&
                      !Update(ref isOpened, () => entity.GetComponent<Chest>()?.IsOpened ?? isOpened) &&
                      (!entity.IsValid || mapIconsSettings.AlwaysShownIngameIcons.Content.Any(x => x.Value.Equals(entity.Path)));
-        var name = entity.GetComponent<MinimapIcon>()?.Name ?? "";
+        var name = string.Empty;
+        try
+        {
+            name = entity.GetComponent<MinimapIcon>()?.Name ?? string.Empty;
+        }
+        catch
+        {
+            // Keep the fallback icon stable during entity transitions.
+        }
+
         var iconIndexByName = ExileCore2.Shared.Helpers.Extensions.IconIndexByName(name);
 
         var iconSizeMultiplier = RemoteMemoryObject.TheGame.Files.MinimapIcons.EntriesList.ElementAtOrDefault((int)iconIndexByName)?.LargeMinimapSize ?? 1;
