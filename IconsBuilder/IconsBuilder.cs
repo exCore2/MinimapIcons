@@ -249,7 +249,20 @@ public class IconsBuilder
 
     public static Regex GetRegex(string regex)
     {
-        return _regexes.GetValue(regex, p => new Regex(p));
+        return _regexes.GetValue(regex ?? string.Empty, p =>
+        {
+            try
+            {
+                return new Regex(p, RegexOptions.Compiled | RegexOptions.CultureInvariant);
+            }
+            catch (ArgumentException)
+            {
+                // User-provided icon filters must never abort the render pass.
+                // An invalid expression is treated as a non-matching rule until
+                // the setting is corrected.
+                return new Regex("(?!)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+            }
+        });
     }
 
     public static bool ShouldTreatAsMonsterWithIcon(string path, IconsBuilderSettings settings)
