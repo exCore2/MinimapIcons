@@ -33,7 +33,7 @@ public class IconsBuilder
     private string DefaultIgnoreFile => Path.Combine(_plugin.DirectoryFullName, "config", "ignored_entities.txt");
     private string CustomIgnoreFile => Path.Combine(_plugin.ConfigDirectory, "ignored_entities.txt");
 
-    private List<string> IgnoredEntities { get; set; }
+    private List<string> IgnoredEntities { get; set; } = [];
     private Dictionary<string, Vector2i> AlertEntitiesWithIconSize { get; set; } = new Dictionary<string, Vector2i>();
 
     private static EntityType[] SkippedEntityTypes =>
@@ -51,6 +51,7 @@ public class IconsBuilder
         
     private void ReadAlertFile()
     {
+        AlertEntitiesWithIconSize.Clear();
         var customAlertFilePath = CustomAlertFile;
         var path = File.Exists(customAlertFilePath) ? customAlertFilePath : DefaultAlertFile;
         if (!File.Exists(path))
@@ -64,13 +65,30 @@ public class IconsBuilder
         {
             if (readAllLine.StartsWith('#')) continue;
             var entityMetadata = readAllLine.Split(';');
+            if (entityMetadata.Length < 3)
+            {
+                _plugin.LogError($"IconsBuilder -> Invalid alert entry (expected metadata;label;width,height): {readAllLine}");
+                continue;
+            }
+
             var iconSize = entityMetadata[2].Trim().Split(',');
-            AlertEntitiesWithIconSize[entityMetadata[0]] = new Vector2i(int.Parse(iconSize[0]), int.Parse(iconSize[1]));
+            if (iconSize.Length < 2 ||
+                !int.TryParse(iconSize[0], out var width) ||
+                !int.TryParse(iconSize[1], out var height) ||
+                width <= 0 ||
+                height <= 0)
+            {
+                _plugin.LogError($"IconsBuilder -> Invalid alert icon size: {readAllLine}");
+                continue;
+            }
+
+            AlertEntitiesWithIconSize[entityMetadata[0]] = new Vector2i(width, height);
         }
     }
 
     private void ReadIgnoreFile()
     {
+        IgnoredEntities = [];
         var customIgnoreFilePath = CustomIgnoreFile;
         var path = File.Exists(customIgnoreFilePath) ? customIgnoreFilePath : DefaultIgnoreFile;
         if (!File.Exists(path))
