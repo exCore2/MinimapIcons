@@ -25,6 +25,7 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
     private SubMap LargeMapWindow => GameController.Game.IngameState.IngameUi.Map.LargeMap;
     private CachedValue<List<BaseIcon>> _iconListCache;
     private IconsBuilder.IconsBuilder _iconsBuilder;
+    private bool _settingsHookAttached;
     private IconsBuilder.IconsBuilder IconsBuilder => _iconsBuilder ??= new IconsBuilder.IconsBuilder(this);
 
     public override bool Initialise()
@@ -35,9 +36,12 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
         Graphics.InitImage("Icons.png");
         CanUseMultiThreading = true;
         _iconListCache = CreateIconListCache();
-        Settings.IconListRefreshPeriod.OnValueChanged += (_, _) => _iconListCache = CreateIconListCache();
+        Settings.IconListRefreshPeriod.OnValueChanged += OnIconListRefreshPeriodChanged;
+        _settingsHookAttached = true;
         return true;
     }
+
+    private void OnIconListRefreshPeriodChanged(object sender, int value) => _iconListCache = CreateIconListCache();
 
     public override void AreaChange(AreaInstance area)
     {
@@ -53,7 +57,7 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
                 : GameController?.EntityListWrapper?.OnlyValidEntities;
             var baseIcons = entitySource?.Select(x => x.GetHudComponent<BaseIcon>())
                 .Where(icon => icon != null)
-                .Where(icon => (!icon.Entity.Path.Contains("Breach/Monsters") && !icon.Entity.Path.Contains("Chests/breach")) || Settings.CacheBreachEntities || icon.Entity.IsValid)
+                .Where(icon => !IsBreachEntity(icon) || Settings.CacheBreachEntities || icon.Entity.IsValid)
                 .OrderBy(x => x.Priority)
                 .ToList();
             return baseIcons ?? [];
@@ -62,6 +66,12 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
 
     public override void Tick()
     {
+        if (!Settings.Enable.Value || !GameController.InGame)
+        {
+            _largeMap = null;
+            return;
+        }
+
         IconsBuilder.Tick();
         _ingameUi = GameController.Game.IngameState.IngameUi;
 
@@ -88,7 +98,7 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
 
     public override void Render()
     {
-        if (_largeMap == null || 
+        if (!Settings.Enable.Value || _largeMap == null || _ingameUi == null ||
             !GameController.InGame ||
             Settings.DrawOnlyOnLargeMap && _largeMap != true) 
             return;
@@ -109,6 +119,9 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
         var baseIcons = _iconListCache.Value;
         if (baseIcons == null) return;
 
+        if (!float.IsFinite(_mapScale) || _mapScale <= 0 || !IsFinite(_mapCenter))
+            return;
+
         foreach (var icon in baseIcons)
         {
             if (icon?.Entity == null) continue;
@@ -123,12 +136,24 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
                 continue;
 
             var iconGridPos = icon.GridPosition();
+            if (!IsFinite(iconGridPos))
+                continue;
+
+            var deltaZ = (playerHeight + GameController.IngameState.Data.GetTerrainHeightAt(iconGridPos)) * PoeMapExtension.WorldToGridConversion;
+            if (!float.IsFinite(deltaZ))
+                continue;
+
             var position = _mapCenter +
                            DeltaInWorldToMinimapDelta(iconGridPos - playerPos,
-                               (playerHeight + GameController.IngameState.Data.GetTerrainHeightAt(iconGridPos)) * PoeMapExtension.WorldToGridConversion);
+                               deltaZ);
+
+            if (!IsFinite(position))
+                continue;
 
             var iconValueMainTexture = icon.MainTexture;
             var size = iconValueMainTexture.Size;
+            if (!float.IsFinite(size) || size <= 0)
+                continue;
             var halfSize = size / 2f;
             icon.DrawRect = new RectangleF(position.X - halfSize, position.Y - halfSize, size, size);
             var drawRect = icon.DrawRect;
@@ -166,6 +191,18 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
         return _mapScale * Vector2.Multiply(new Vector2(delta.X - delta.Y, deltaZ - (delta.X + delta.Y)), new Vector2(CameraAngleCos, CameraAngleSin));
     }
 
+    private static bool IsBreachEntity(BaseIcon icon)
+    {
+        var path = icon.Entity.Path ?? string.Empty;
+        return path.Contains("Breach/Monsters", StringComparison.OrdinalIgnoreCase) ||
+               path.Contains("Chests/breach", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsFinite(Vector2 value)
+    {
+        return float.IsFinite(value.X) && float.IsFinite(value.Y);
+    }
+
     private static readonly List<Regex> AlwaysShownIngameIcons = new[]
         {
             "^Metadata/Monsters/Breach/",
@@ -177,11 +214,33 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
 
     private bool ShouldSkipIngameIcon(BaseIcon icon)
     {
+        var path = icon.Entity.Path ?? string.Empty;
         return icon.HasIngameIcon &&
                icon is not CustomIcon &&
                (!Settings.DrawReplacementsForGameIconsWhenOutOfRange || icon.Entity.IsValid) &&
-               !AlwaysShownIngameIcons.Any(x => x.IsMatch(icon.Entity.Path)) &&
-               !Settings.AlwaysShownIngameIcons.Content.Any(x => global::MinimapIcons.IconsBuilder.IconsBuilder.GetRegex(x.Value).IsMatch(icon.Entity.Path));
+               !AlwaysShownIngameIcons.Any(x => x.IsMatch(path)) &&
+               !Settings.AlwaysShownIngameIcons.Content.Any(x => global::MinimapIcons.IconsBuilder.IconsBuilder.GetRegex(x.Value).IsMatch(path));
+    }
+
+    public override void OnPluginDestroyForHotReload()
+    {
+        DetachSettingsHook();
+        base.OnPluginDestroyForHotReload();
+    }
+
+    public override void Dispose()
+    {
+        DetachSettingsHook();
+        base.Dispose();
+    }
+
+    private void DetachSettingsHook()
+    {
+        if (!_settingsHookAttached)
+            return;
+
+        Settings.IconListRefreshPeriod.OnValueChanged -= OnIconListRefreshPeriodChanged;
+        _settingsHookAttached = false;
     }
 }
 
