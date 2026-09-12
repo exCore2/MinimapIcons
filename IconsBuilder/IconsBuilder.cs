@@ -130,6 +130,7 @@ public class IconsBuilder
         if (entity is not { IsValid: true }) return true;
         if (SkippedEntityTypes.Any(x => x == entity.Type)) return true;
         if (IgnoredEntities.Any(x => entity.Path?.Contains(x) == true)) return true;
+        if (_plugin.IsAlwaysIgnored(entity)) return true;
 
         return false;
     }
