@@ -45,5 +45,20 @@ public class MapIconsSettings : ISettings
             UseFlatItems = true,
         };
 
+    [Menu(null, CollapsedByDefault = true)]
+    public ContentNode<TextNode> AlwaysIgnoreMinimapIcons { get; set; } =
+        new ContentNode<TextNode>()
+        {
+            Content =
+            [
+                // Not real monsters in Grand Expedition
+                new TextNode("^Metadata/Monsters/LeagueExpeditionNew/RuneEncounterController$"),
+                new TextNode("^Metadata/Monsters/LeagueExpeditionNew/ExpeditionRuneElementalTornado$"),
+            ],
+            EnableControls = true,
+            ItemFactory = () => new TextNode(""),
+            UseFlatItems = true,
+        };
+
     public IconsBuilderSettings IconsBuilderSettings { get; set; } = new();
 }
