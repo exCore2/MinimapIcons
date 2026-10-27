@@ -1,4 +1,6 @@
-﻿using ExileCore2.Shared.Attributes;
+﻿using System.Collections.Generic;
+using System.Linq;
+using ExileCore2.Shared.Attributes;
 using ExileCore2.Shared.Interfaces;
 using ExileCore2.Shared.Nodes;
 using MinimapIcons.IconsBuilder;
@@ -45,20 +47,39 @@ public class MapIconsSettings : ISettings
             UseFlatItems = true,
         };
 
+    /// <summary>
+    /// The "always ignore" patterns the plugin ships with. A saved settings file keeps its own list, so a pattern added
+    /// here later is appended to it once on load; see AlwaysIgnoreDefaultsApplied.
+    /// </summary>
+    public static readonly string[] AlwaysIgnoreDefaults =
+    [
+        // Not real monsters in Grand Expedition
+        "^Metadata/Monsters/LeagueExpeditionNew/RuneEncounterController$",
+        "^Metadata/Monsters/LeagueExpeditionNew/ExpeditionRuneElementalTornado$",
+        // Tormented spirit on-death entities
+        "^Metadata/Monsters/TormentedSpirits/.*OnDeath$",
+        // Verisium Sentry
+        "^Metadata/Monsters/LeagueExpeditionNew/Sentinels/KalguurDrone$",
+        // Explosive barrels in pirate camps
+        "^Metadata/Monsters/Pirates/CampExplosion$",
+    ];
+
     [Menu(null, CollapsedByDefault = true)]
     public ContentNode<TextNode> AlwaysIgnoreMinimapIcons { get; set; } =
         new ContentNode<TextNode>()
         {
-            Content =
-            [
-                // Not real monsters in Grand Expedition
-                new TextNode("^Metadata/Monsters/LeagueExpeditionNew/RuneEncounterController$"),
-                new TextNode("^Metadata/Monsters/LeagueExpeditionNew/ExpeditionRuneElementalTornado$"),
-            ],
+            Content = AlwaysIgnoreDefaults.Select(pattern => new TextNode(pattern)).ToList(),
             EnableControls = true,
             ItemFactory = () => new TextNode(""),
             UseFlatItems = true,
         };
+
+    /// <summary>
+    /// The AlwaysIgnoreDefaults already added to AlwaysIgnoreMinimapIcons, so a default the user removed is not added
+    /// back.
+    /// </summary>
+    [IgnoreMenu]
+    public List<string> AlwaysIgnoreDefaultsApplied { get; set; } = [];
 
     public IconsBuilderSettings IconsBuilderSettings { get; set; } = new();
 }

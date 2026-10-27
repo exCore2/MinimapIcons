@@ -10,6 +10,7 @@ using ExileCore2.PoEMemory.MemoryObjects;
 using ExileCore2.Shared.Cache;
 using ExileCore2.Shared.Enums;
 using ExileCore2.Shared.Helpers;
+using ExileCore2.Shared.Nodes;
 using MinimapIcons.IconsBuilder.Icons;
 using RectangleF = ExileCore2.Shared.RectangleF;
 using Vector2 = System.Numerics.Vector2;
@@ -31,6 +32,7 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
     {
         IconsBuilder.Initialise();
         Settings.AlwaysShownIngameIcons.Content = Settings.AlwaysShownIngameIcons.Content.DistinctBy(x => x.Value).ToList();
+        AddNewAlwaysIgnoreDefaults();
         Graphics.InitImage("sprites.png");
         Graphics.InitImage("Icons.png");
         CanUseMultiThreading = true;
@@ -155,6 +157,28 @@ public class MinimapIcons : BaseSettingsPlugin<MapIconsSettings>
 
             if (!string.IsNullOrEmpty(icon.Text))
                 Graphics.DrawText(icon.Text, position.Translate(0, Settings.ZForText), FontAlign.Center);
+        }
+    }
+
+    /// <summary>
+    /// Appends each of MapIconsSettings.AlwaysIgnoreDefaults that the saved "always ignore" list has not been given yet,
+    /// and records it as given. A saved list replaces the default one on load, so without this a default added in a
+    /// later version would only reach fresh installs; recording it means a default the user removed stays removed.
+    /// </summary>
+    private void AddNewAlwaysIgnoreDefaults()
+    {
+        var content = Settings.AlwaysIgnoreMinimapIcons.Content;
+        var applied = Settings.AlwaysIgnoreDefaultsApplied;
+
+        foreach (var pattern in MapIconsSettings.AlwaysIgnoreDefaults)
+        {
+            if (applied.Contains(pattern))
+                continue;
+
+            if (!content.Any(x => x.Value == pattern))
+                content.Add(new TextNode(pattern));
+
+            applied.Add(pattern);
         }
     }
 
